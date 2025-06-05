@@ -51,6 +51,19 @@ def is_profile_query(text: str) -> bool:
             return True
     return False
 
+def is_first_message(user_data: Dict[str, Any]) -> bool:
+    """
+    Проверяет, является ли это первым сообщением пользователя после создания профиля.
+    
+    Args:
+        user_data: Данные пользователя из состояния
+        
+    Returns:
+        bool: True, если это первое сообщение, иначе False
+    """
+    # Проверяем флаг первого сообщения
+    return user_data.get("is_first_message_after_profile", True)
+
 @conversation_router.message(F.text)
 async def handle_text_message(message: Message, state: FSMContext):
     """

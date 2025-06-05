@@ -616,7 +616,8 @@ async def confirm_profile_reset(callback: CallbackQuery, state: FSMContext):
         personality_type=None,
         waiting_for_vasini_confirmation=False,
         question_index=0,
-        is_demo_questions=True
+        is_demo_questions=True,
+        is_first_message_after_profile=False
     )
     
     # Удаляем сообщение с подтверждением
