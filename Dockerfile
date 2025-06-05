@@ -21,11 +21,13 @@ COPY requirements.txt .
 
 # Установка зависимостей в оптимальном порядке
 # Сначала базовые и критичные зависимости
-RUN pip install --no-cache-dir python-dotenv pytz pre-commit pytest
-RUN pip install --no-cache-dir httpx==0.25.2 aiohttp==3.9.1
-RUN pip install --no-cache-dir aiogram==3.2.0
-RUN pip install --no-cache-dir openai==1.3.5
-RUN pip install --no-cache-dir ephem elevenlabs aiofiles apscheduler
+# RUN pip install --no-cache-dir python-dotenv pytz pre-commit pytest
+# RUN pip install --no-cache-dir httpx==0.25.2 aiohttp==3.9.1
+# RUN pip install --no-cache-dir aiogram==3.2.0
+# RUN pip install --no-cache-dir openai==1.3.5
+# RUN pip install --no-cache-dir ephem elevenlabs aiofiles apscheduler
+
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Явная установка psutil с нужными зависимостями
 RUN pip install --no-cache-dir --force-reinstall psutil==5.9.5
