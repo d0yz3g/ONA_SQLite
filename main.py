@@ -13,6 +13,7 @@ from aiogram.types import BufferedInputFile
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from motor.motor_asyncio import AsyncIOMotorClient
+from communication_handler import communication_handler_router
 
 # Импортируем fcntl только для Unix-подобных систем
 if sys.platform != 'win32':
@@ -271,6 +272,7 @@ dp.include_router(reminder_router)
 # Регистрируем роутер обычных сообщений последним
 dp.include_router(conversation_router)
 
+dp.include_router(communication_handler_router)
 # Обработчик команды /start
 
 
