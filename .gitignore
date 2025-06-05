@@ -1,0 +1,58 @@
+# Виртуальные окружения
+venv/
+.venv/
+env/
+ENV/
+
+# Кэш и компилированные файлы Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Файлы окружения и секреты
+.env
+env.bak/
+*.env
+
+# Файлы логов
+*.log
+restart.log
+bot.log
+logs/
+
+# Временные файлы
+tmp/
+*.mp3
+*.wav
+*.ogg
+*.json
+
+# База данных
+*.db
+*.sqlite
+*.sqlite3
+
+# Файлы IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Файлы Docker
+.dockerignore
+
+# Локальные файлы конфигурации
+local_settings.py
+
+# Другие временные файлы
+*.bak
+*.tmp
+*.temp
+
+# Дополнительные файлы для игнорирования
+Ona2.0_export/
+push_to_github.bat
+push_to_github.ps1 
