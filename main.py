@@ -7,11 +7,12 @@ import socket  # Для получения имени хоста
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message
 from aiogram.filters import Command
-from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.mongo import MongoStorage
 from dotenv import load_dotenv
 from aiogram.types import BufferedInputFile
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from motor.motor_asyncio import AsyncIOMotorClient
 
 # Импортируем fcntl только для Unix-подобных систем
 if sys.platform != 'win32':
@@ -240,6 +241,11 @@ except ImportError as e:
 
     railway_print("Аварийная загрузка базовых модулей выполнена", "WARNING")
 
+# Подключения к MongoDB
+MONGO_URL = os.getenv("MONGO_URL")
+DB_NAME = os.getenv("MONGO_DB_NAME", "aiogram_fsm_db")
+mongo_client = AsyncIOMotorClient(MONGO_URL)
+
 # Создаем экземпляр бота и диспетчер
 bot = Bot(
     token=BOT_TOKEN,
@@ -249,7 +255,10 @@ bot = Bot(
         protect_content=False  # Разрешаем пересылку сообщений
     )
 )
-dp = Dispatcher(storage=MemoryStorage())
+dp = Dispatcher(storage=MongoStorage(
+    client=mongo_client,
+    db_name=DB_NAME
+))
 
 # Регистрируем роутеры в правильном порядке
 # Сначала регистрируем роутер опроса, чтобы он имел приоритет при обработке сообщений в состоянии опроса
