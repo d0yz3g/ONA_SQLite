@@ -10,6 +10,8 @@ from aiogram.filters import Command
 from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
 from aiogram.types import BufferedInputFile
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 
 # Импортируем fcntl только для Unix-подобных систем
 if sys.platform != 'win32':
@@ -25,15 +27,16 @@ LOCK_FILE = os.path.join(tempfile.gettempdir(), 'ona_bot.lock')
 lock_socket = None
 lock_file_handle = None
 
+
 def acquire_lock():
     """
     Пытается получить блокировку, предотвращающую запуск нескольких экземпляров.
-    
+
     Returns:
         bool: True, если блокировка получена успешно, False в противном случае
     """
     global lock_socket, lock_file_handle
-    
+
     try:
         # Создаем именованный сокет для Windows
         if sys.platform == 'win32':
@@ -72,7 +75,7 @@ def acquire_lock():
                     except (ValueError, OSError):
                         # PID невалидный или процесс не существует
                         pass
-            
+
             # Записываем текущий PID в файл
             with open(LOCK_FILE, 'w') as f:
                 f.write(str(os.getpid()))
@@ -82,12 +85,13 @@ def acquire_lock():
         print(f"Ошибка при получении блокировки: {e}")
         return False
 
+
 def release_lock():
     """
     Освобождает блокировку, полученную с помощью acquire_lock().
     """
     global lock_socket, lock_file_handle
-    
+
     try:
         # Освобождаем сокет для Windows
         if lock_socket:
@@ -96,7 +100,7 @@ def release_lock():
                 print("Блокировка освобождена (Windows)")
             except Exception as e:
                 print(f"Ошибка при освобождении сокета: {e}")
-        
+
         # Освобождаем файловую блокировку для Unix
         if lock_file_handle:
             try:
@@ -106,7 +110,7 @@ def release_lock():
                 print("Блокировка освобождена (Unix)")
             except Exception as e:
                 print(f"Ошибка при освобождении файловой блокировки: {e}")
-        
+
         # Удаляем PID файл, если использовался такой метод
         if os.path.exists(LOCK_FILE) and sys.platform == 'win32' or not fcntl:
             try:
@@ -116,6 +120,7 @@ def release_lock():
                 print(f"Ошибка при удалении PID файла: {e}")
     except Exception as e:
         print(f"Ошибка при освобождении блокировки: {e}")
+
 
 # Загружаем переменные окружения из .env
 load_dotenv()
@@ -155,7 +160,7 @@ except ImportError:
     )
     logger = logging.getLogger(__name__)
     print("БОТ: Используется стандартное логирование (railway_logging не найден)")
-    
+
     # Определяем функцию railway_print, если модуль railway_logging не найден
     def railway_print(message, level="INFO"):
         prefix = "ИНФО"
@@ -172,7 +177,8 @@ except ImportError:
 railway_print("=== ONA TELEGRAM BOT STARTING ===", "INFO")
 railway_print(f"Python version: {sys.version}", "INFO")
 railway_print(f"Current working directory: {os.getcwd()}", "INFO")
-railway_print(f"Files in directory: {[f for f in os.listdir('.') if f.endswith('.py')]}", "INFO")
+railway_print(
+    f"Files in directory: {[f for f in os.listdir('.') if f.endswith('.py')]}", "INFO")
 
 # Загружаем API токен из .env файла
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -190,7 +196,8 @@ try:
     logger.info("Библиотека psutil успешно импортирована")
 except ImportError:
     PSUTIL_AVAILABLE = False
-    logger.warning("Библиотека psutil не установлена, некоторые функции будут недоступны")
+    logger.warning(
+        "Библиотека psutil не установлена, некоторые функции будут недоступны")
 
 # Импортируем роутеры
 try:
@@ -205,39 +212,42 @@ except ImportError as e:
     logger.error(f"Ошибка импорта модулей: {e}")
     railway_print(f"Ошибка импорта модулей: {e}", "ERROR")
     railway_print("Попытка аварийной загрузки базовых модулей...", "WARNING")
-    
+
     # Попытка аварийной загрузки базовых модулей
     # Создаем пустые роутеры
     from aiogram import Router
     from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-    
+
     survey_router = Router(name="survey")
     voice_router = Router(name="voice")
     conversation_router = Router(name="conversation")
     meditation_router = Router(name="meditation")
     reminder_router = Router(name="reminder")
-    
+
     # Создаем базовую клавиатуру
     def get_main_keyboard():
         return ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="📝 Опрос"), KeyboardButton(text="💬 Помощь")]
+                [KeyboardButton(text="📝 Опрос"),
+                 KeyboardButton(text="💬 Помощь")]
             ],
             resize_keyboard=True
         )
-    
+
     # Создаем пустой планировщик
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
     scheduler = AsyncIOScheduler()
-    
+
     railway_print("Аварийная загрузка базовых модулей выполнена", "WARNING")
 
 # Создаем экземпляр бота и диспетчер
 bot = Bot(
     token=BOT_TOKEN,
-    parse_mode="HTML",  # Устанавливаем HTML-разметку по умолчанию
-    disable_web_page_preview=True,  # Отключаем предпросмотр веб-страниц
-    protect_content=False  # Разрешаем пересылку сообщений
+    default=DefaultBotProperties(
+        parse_mode=ParseMode.HTML,  # Устанавливаем HTML-разметку по умолчанию
+        link_preview_is_disabled=True,  # Отключаем предпросмотр веб-страниц
+        protect_content=False  # Разрешаем пересылку сообщений
+    )
 )
 dp = Dispatcher(storage=MemoryStorage())
 
@@ -253,6 +263,8 @@ dp.include_router(reminder_router)
 dp.include_router(conversation_router)
 
 # Обработчик команды /start
+
+
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
     """
@@ -270,10 +282,10 @@ async def cmd_start(message: Message):
         "Это займет около 10-15 минут.\n\n"
         "Готов начать?"
     )
-    
+
     # Используем единую клавиатуру из survey_handler
     keyboard = get_main_keyboard()
-    
+
     # Отправляем приветственное сообщение
     await message.answer(
         greeting_text,
@@ -282,6 +294,8 @@ async def cmd_start(message: Message):
     )
 
 # Обработчик команды /help
+
+
 @dp.message(Command("help"))
 @dp.message(F.text == "💬 Помощь")
 async def cmd_help(message: Message):
@@ -308,7 +322,7 @@ async def cmd_help(message: Message):
         "💡 <b>Если возникнут вопросы или проблемы:</b>\n"
         "• Напишите \"Помощь\" или используйте команду /help\n"
     )
-    
+
     await message.answer(
         help_text,
         parse_mode="HTML",
@@ -316,6 +330,8 @@ async def cmd_help(message: Message):
     )
 
 # Обработчик команды /api_key
+
+
 @dp.message(Command("api_key"))
 async def cmd_api_key(message: Message):
     """
@@ -324,7 +340,7 @@ async def cmd_api_key(message: Message):
     try:
         with open('api_key_instructions.md', 'r', encoding='utf-8') as f:
             instructions = f.read()
-        
+
         instructions_text = (
             "🔑 <b>Инструкции по настройке API ключа OpenAI</b>\n\n"
             "Если бот отвечает шаблонными сообщениями и не генерирует уникальные ответы, "
@@ -336,13 +352,13 @@ async def cmd_api_key(message: Message):
             "4. Перезапустите бота\n\n"
             "Полные инструкции отправлены отдельным файлом."
         )
-        
+
         # Отправляем краткую информацию
         await message.answer(
             instructions_text,
             parse_mode="HTML"
         )
-        
+
         # Отправляем файл с полными инструкциями
         await message.answer_document(
             document=BufferedInputFile(
@@ -351,9 +367,10 @@ async def cmd_api_key(message: Message):
             ),
             caption="Подробные инструкции по настройке API ключа OpenAI"
         )
-        
-        logger.info(f"Отправлены инструкции по настройке API ключа пользователю {message.from_user.id}")
-        
+
+        logger.info(
+            f"Отправлены инструкции по настройке API ключа пользователю {message.from_user.id}")
+
     except Exception as e:
         logger.error(f"Ошибка при отправке инструкций по API ключу: {e}")
         await message.answer(
@@ -361,6 +378,8 @@ async def cmd_api_key(message: Message):
         )
 
 # Обработчик команды /restart
+
+
 @dp.message(Command("restart"))
 @dp.message(F.text == "🔄 Рестарт")
 async def cmd_restart(message: Message):
@@ -377,10 +396,13 @@ async def cmd_restart(message: Message):
     )
 
 # Функция для инициализации планировщика
+
+
 async def start_scheduler():
     if scheduler and not scheduler.running:
         scheduler.start()
         logger.info("Планировщик заданий запущен")
+
 
 async def main():
     """
@@ -389,24 +411,25 @@ async def main():
     # Проверяем, что нет другого запущенного экземпляра
     if not acquire_lock():
         logger.error("Другой экземпляр бота уже запущен. Завершение работы.")
-        railway_print("КРИТИЧЕСКАЯ ОШИБКА: Обнаружен другой запущенный экземпляр бота. Завершение работы.", "ERROR")
+        railway_print(
+            "КРИТИЧЕСКАЯ ОШИБКА: Обнаружен другой запущенный экземпляр бота. Завершение работы.", "ERROR")
         return
-        
+
     # Инициализируем бот
     logger.info("Бот ОНА запускается...")
     railway_print("Запуск основного цикла бота...", "INFO")
-    
+
     try:
         # Удаляем все обновления, которые были пропущены (если бот был отключен)
         await bot.delete_webhook(drop_pending_updates=True)
         railway_print("Старые обновления удалены", "INFO")
-        
+
         # Удаляем webhook (если он был установлен)
         webhook_info = await bot.get_webhook_info()
         if webhook_info.url:
             await bot.delete_webhook()
             logger.info("Webhook удален, старые обновления очищены")
-        
+
         # Завершаем потенциально запущенные сессии бота (для предотвращения конфликтов)
         if hasattr(bot, "session") and bot.session:
             try:
@@ -414,69 +437,78 @@ async def main():
                 logger.info("Существующая сессия бота закрыта")
             except Exception as e:
                 logger.warning(f"Не удалось закрыть существующую сессию: {e}")
-        
+
         # Создаем новую сессию
         bot._session = None  # Сбрасываем текущую сессию, чтобы создать новую
-        
+
         # Проверяем соединение с Telegram API
         bot_info = await bot.get_me()
-        logger.info(f"Соединение с Telegram API установлено успешно. Имя бота: @{bot_info.username}")
-        railway_print(f"Бот @{bot_info.username} успешно подключен к Telegram API", "INFO")
-        
+        logger.info(
+            f"Соединение с Telegram API установлено успешно. Имя бота: @{bot_info.username}")
+        railway_print(
+            f"Бот @{bot_info.username} успешно подключен к Telegram API", "INFO")
+
         # Запускаем планировщик заданий
         await start_scheduler()
-        
+
         # Сообщение о готовности бота
         railway_print("=== ONA BOT ЗАПУЩЕН И ГОТОВ К РАБОТЕ ===", "INFO")
-        
+
         # Запускаем бота с длинным поллингом и параметрами для предотвращения конфликтов
         await dp.start_polling(bot, fast=True, timeout=60, allowed_updates=None, polling_timeout=60)
     except Exception as e:
         # Проверяем, является ли ошибка конфликтом запросов
         if "Conflict: terminated by other getUpdates" in str(e) or "TelegramConflictError" in str(e):
-            logger.error("Обнаружен конфликт запросов Telegram API - другой экземпляр бота уже запущен")
-            railway_print("КОНФЛИКТ: Другой экземпляр бота уже получает обновления. Выполняем повторную попытку через 10 секунд...", "ERROR")
-            
+            logger.error(
+                "Обнаружен конфликт запросов Telegram API - другой экземпляр бота уже запущен")
+            railway_print(
+                "КОНФЛИКТ: Другой экземпляр бота уже получает обновления. Выполняем повторную попытку через 10 секунд...", "ERROR")
+
             # Делаем паузу и пробуем снова
             await asyncio.sleep(10)
-            railway_print("Повторная попытка запуска после конфликта...", "INFO")
-            
+            railway_print(
+                "Повторная попытка запуска после конфликта...", "INFO")
+
             try:
                 # Создаем новую сессию
                 if hasattr(bot, "session") and bot.session:
                     await bot.session.close()
                 bot._session = None
-                
+
                 # Пробуем запустить снова
                 await dp.start_polling(bot, fast=True, timeout=60, allowed_updates=None, polling_timeout=60)
                 railway_print("Повторный запуск выполнен успешно!", "INFO")
             except Exception as retry_error:
-                logger.error(f"Повторная попытка запуска не удалась: {retry_error}")
-                railway_print(f"Повторная попытка не удалась: {str(retry_error)}", "ERROR")
-                
+                logger.error(
+                    f"Повторная попытка запуска не удалась: {retry_error}")
+                railway_print(
+                    f"Повторная попытка не удалась: {str(retry_error)}", "ERROR")
+
                 # Если мы запускаемся из restart_bot.py, повторный запуск будет выполнен автоматически
                 if 'restart_bot.py' in sys.argv[0]:
-                    railway_print("Ожидаем перезапуска через монитор...", "INFO")
+                    railway_print(
+                        "Ожидаем перезапуска через монитор...", "INFO")
                 else:
-                    railway_print("Рекомендуется запускать бота через restart_bot.py для автоматического перезапуска", "WARNING")
+                    railway_print(
+                        "Рекомендуется запускать бота через restart_bot.py для автоматического перезапуска", "WARNING")
         else:
             logger.error(f"Ошибка запуска бота: {e}")
             railway_print(f"Ошибка запуска: {str(e)}", "ERROR")
     finally:
         # Освобождаем блокировку при завершении
         release_lock()
-        
+
         # Останавливаем планировщик заданий при выходе
         if scheduler and scheduler.running:
             scheduler.shutdown()
             logger.info("Планировщик заданий остановлен")
-        
+
         if hasattr(bot, "session") and bot.session:
             await bot.session.close()
             logger.info("Сессия бота закрыта")
-        
+
         railway_print("Бот завершил работу", "INFO")
 
 if __name__ == "__main__":
     # Запускаем бота
-    asyncio.run(main()) 
+    asyncio.run(main())
