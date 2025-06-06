@@ -1,10 +1,17 @@
 import logging
-from typing import Dict, Any, Optional
+import os
+from typing import Dict, Any, Union, Optional, List, Tuple, Callable
+import asyncio
+import json
+import inspect
+import re
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.utils.markdown import hbold, hitalic, hcode, hlink
 
 # Импортируем состояния для опроса
 from button_states import SurveyStates
@@ -313,4 +320,103 @@ async def show_profile(message: Message, state: FSMContext):
                     [{"text": "❌ Нет, позже", "callback_data": "cancel_survey"}]
                 ]
             }
+        )
+
+# Создаем роутер для обработки коммуникаций
+conversation_handler_router = Router(name="conversation_handler")
+
+# Максимальное количество сообщений в истории диалога
+MAX_HISTORY_LENGTH = 15
+
+# Состояния FSM для работы с диалогом
+class ConversationStates(StatesGroup):
+    dialogue = State()  # Обычный диалог с пользователем
+    guided_practice = State()  # Состояние ведения пользователя через практику
+    collecting_feedback = State()  # Сбор обратной связи
+
+# Обработчик обычных сообщений
+@conversation_handler_router.message(StateFilter(ConversationStates.dialogue))
+async def handle_user_message(message: Message, state: FSMContext):
+    """
+    Обрабатывает обычные сообщения пользователя в режиме диалога.
+    
+    Args:
+        message: Сообщение пользователя
+        state: Состояние FSM
+    """
+    try:
+        # Получаем текст сообщения
+        message_text = message.text
+        if not message_text:
+            return
+        
+        # Получаем данные из состояния
+        state_data = await state.get_data()
+        
+        # Получаем историю сообщений или создаем пустую
+        conversation_history = state_data.get("conversation_history", [])
+        
+        # Получаем профиль пользователя или создаем пустой
+        user_profile = state_data.get("user_profile", {})
+        
+        # Проверяем наличие обязательных полей в профиле
+        if not user_profile or not user_profile.get("personality_type"):
+            # Если профиль неполный, пытаемся извлечь тип личности из имеющегося текста профиля
+            profile_text = user_profile.get("profile_text", "")
+            if profile_text:
+                personality_type = await get_personality_type_from_profile(profile_text)
+                user_profile["personality_type"] = personality_type
+            else:
+                # Если нет текста профиля, используем значение по умолчанию
+                user_profile["personality_type"] = "Интеллектуальный"
+                logger.warning(f"Для пользователя {message.from_user.id} не найден профиль. Используем тип личности по умолчанию.")
+        
+        # Отправляем сообщение "печатает..."
+        await message.chat.do("typing")
+        
+        # Добавляем сообщение пользователя в историю
+        conversation_history.append({
+            "role": "user",
+            "content": message_text
+        })
+        
+        # Если история слишком длинная, удаляем старые сообщения
+        if len(conversation_history) > MAX_HISTORY_LENGTH:
+            # Сохраняем первое системное сообщение, если оно есть
+            if conversation_history and conversation_history[0]["role"] == "system":
+                conversation_history = [conversation_history[0]] + conversation_history[-(MAX_HISTORY_LENGTH-1):]
+            else:
+                conversation_history = conversation_history[-MAX_HISTORY_LENGTH:]
+        
+        # Генерируем персонализированный ответ
+        response = await generate_personalized_response(
+            message_text=message_text,
+            user_profile=user_profile,
+            conversation_history=conversation_history,
+            user_id=message.from_user.id
+        )
+        
+        # Проверяем, не пустой ли ответ
+        if not response:
+            response = "Мне нужно немного времени, чтобы обдумать этот вопрос. Давай вернемся к нему чуть позже?"
+        
+        # Удаляем звездочки из ответа
+        response = response.replace("**", "")
+        
+        # Добавляем ответ бота в историю
+        conversation_history.append({
+            "role": "assistant",
+            "content": response
+        })
+        
+        # Обновляем историю в состоянии
+        await state.update_data(conversation_history=conversation_history)
+        
+        # Отправляем ответ пользователю
+        await message.answer(response)
+        
+    except Exception as e:
+        logger.exception(f"Ошибка при обработке сообщения пользователя: {e}")
+        await message.answer(
+            "Произошла ошибка при обработке твоего сообщения. Пожалуйста, попробуй еще раз или используй команду /restart, если проблема повторяется."
         ) 
